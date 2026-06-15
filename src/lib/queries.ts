@@ -95,8 +95,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       select: {
         id: true,
         keyword: true,
-        country: true,
-        language: true,
+        location: true,
         createdAt: true,
       },
     }),

@@ -7,15 +7,14 @@ export const dynamic = "force-dynamic";
 
 // POST /api/keywords/bulk — create many keywords at once.
 // Accepts a JSON array of keyword strings (bulk paste or parsed CSV).
-// Duplicates (same keyword/country/language) are skipped silently.
+// Duplicates (same keyword/location) are skipped silently.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Invalid JSON body");
 
     const input = bulkKeywordSchema.parse(body);
-    const country = input.country.toLowerCase();
-    const language = input.language.toLowerCase();
+    const location = input.location;
 
     // De-duplicate within the submitted batch.
     const unique = Array.from(
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
 
     const result = await prisma.keyword.createMany({
-      data: unique.map((keyword) => ({ keyword, country, language })),
+      data: unique.map((keyword) => ({ keyword, location })),
       skipDuplicates: true,
     });
 

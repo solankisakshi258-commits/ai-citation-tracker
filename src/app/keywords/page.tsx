@@ -21,8 +21,7 @@ async function getKeywordRows(): Promise<KeywordRow[]> {
   return keywords.map((k) => ({
     id: k.id,
     keyword: k.keyword,
-    country: k.country,
-    language: k.language,
+    location: k.location,
     createdAt: k.createdAt.toISOString(),
     citationCount: k._count.citations,
     organicCount: k._count.organicRankings,

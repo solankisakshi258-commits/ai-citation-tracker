@@ -45,8 +45,8 @@ export async function collectKeyword(
   try {
     // Fetch both sources in parallel — they are independent.
     const [aiOverview, organic] = await Promise.all([
-      fetchAiOverview(keyword.keyword, keyword.country, keyword.language),
-      fetchOrganicResults(keyword.keyword, keyword.country, keyword.language),
+      fetchAiOverview(keyword.keyword, keyword.location),
+      fetchOrganicResults(keyword.keyword, keyword.location),
     ]);
 
     // Persist atomically: clear the previous snapshot, write the new one.

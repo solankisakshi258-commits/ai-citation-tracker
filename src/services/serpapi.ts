@@ -37,16 +37,16 @@ interface SerpApiResponse {
   error?: string;
 }
 
-function buildSearchUrl(
-  keyword: string,
-  country: string,
-  language: string
-): string {
+// Results are fetched in English by default; "location" is the single market
+// input (SerpApi canonical location name, e.g. "India").
+const DEFAULT_HL = "en";
+
+function buildSearchUrl(keyword: string, location: string): string {
   const params = new URLSearchParams({
     engine: "google",
     q: keyword,
-    gl: country,
-    hl: language,
+    location,
+    hl: DEFAULT_HL,
     api_key: env.SERPAPI_API_KEY,
   });
   return `${SERPAPI_BASE}?${params.toString()}`;
@@ -117,13 +117,12 @@ async function fetchJson<T>(url: string): Promise<T> {
  */
 export async function fetchAiOverview(
   keyword: string,
-  country = "in",
-  language = "en"
+  location = "India"
 ): Promise<AiOverviewResult> {
-  logger.info("SerpApi: fetching AI overview", { keyword, country, language });
+  logger.info("SerpApi: fetching AI overview", { keyword, location });
 
   const initial = await fetchJson<SerpApiResponse>(
-    buildSearchUrl(keyword, country, language)
+    buildSearchUrl(keyword, location)
   );
 
   if (initial.error) {

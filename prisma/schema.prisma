@@ -21,8 +21,9 @@ enum JobStatus {
 model Keyword {
   id        String   @id @default(cuid())
   keyword   String
-  country   String   @default("in") // ISO country code, e.g. "in", "us"
-  language  String   @default("en") // ISO language code, e.g. "en", "hi"
+  // DataForSEO/SerpApi location_name, e.g. "India", "United States",
+  // "London,England,United Kingdom". This is the single location input.
+  location  String   @default("India")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -31,8 +32,8 @@ model Keyword {
   organicRankings  OrganicRanking[]
   jobs             Job[]
 
-  // A keyword is unique within a country/language market.
-  @@unique([keyword, country, language])
+  // A keyword is unique within a location.
+  @@unique([keyword, location])
   @@index([createdAt])
   @@map("keywords")
 }

@@ -50,9 +50,7 @@ export default async function KeywordDetailPage({
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {keyword.keyword}
           </h1>
-          <p className="text-sm uppercase text-muted-foreground">
-            {keyword.country} / {keyword.language}
-          </p>
+          <p className="text-sm text-muted-foreground">{keyword.location}</p>
         </div>
         <div className="flex items-center gap-3">
           {latestJob && (

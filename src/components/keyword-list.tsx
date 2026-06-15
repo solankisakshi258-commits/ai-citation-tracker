@@ -19,8 +19,7 @@ import { formatDate } from "@/lib/utils";
 export interface KeywordRow {
   id: string;
   keyword: string;
-  country: string;
-  language: string;
+  location: string;
   createdAt: string;
   citationCount: number;
   organicCount: number;
@@ -68,7 +67,7 @@ export function KeywordList({ rows }: { rows: KeywordRow[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Keyword</TableHead>
-          <TableHead className="w-20">Market</TableHead>
+          <TableHead className="w-40">Location</TableHead>
           <TableHead className="w-28">AI Overview</TableHead>
           <TableHead className="w-24 text-right">Citations</TableHead>
           <TableHead className="w-24 text-right">Organic</TableHead>
@@ -87,8 +86,8 @@ export function KeywordList({ rows }: { rows: KeywordRow[] }) {
                 {row.keyword}
               </Link>
             </TableCell>
-            <TableCell className="uppercase text-muted-foreground">
-              {row.country}/{row.language}
+            <TableCell className="text-muted-foreground">
+              {row.location}
             </TableCell>
             <TableCell>
               <AiBadge present={row.aiOverviewPresent} />

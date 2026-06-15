@@ -13,11 +13,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  NativeSelect,
-  COUNTRY_OPTIONS,
-  LANGUAGE_OPTIONS,
-} from "@/components/market-select";
+import { NativeSelect, LOCATION_OPTIONS } from "@/components/market-select";
 
 type Mode = "single" | "bulk" | "csv";
 
@@ -38,8 +34,7 @@ function parseKeywordList(raw: string): string[] {
 export function KeywordForm() {
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>("single");
-  const [country, setCountry] = React.useState("in");
-  const [language, setLanguage] = React.useState("en");
+  const [location, setLocation] = React.useState("India");
 
   const [keyword, setKeyword] = React.useState("");
   const [bulkText, setBulkText] = React.useState("");
@@ -62,7 +57,7 @@ export function KeywordForm() {
     const res = await fetch("/api/keywords", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keyword, country, language }),
+      body: JSON.stringify({ keyword, location }),
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
@@ -78,7 +73,7 @@ export function KeywordForm() {
     const res = await fetch("/api/keywords/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keywords, country, language }),
+      body: JSON.stringify({ keywords, location }),
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
@@ -122,7 +117,7 @@ export function KeywordForm() {
       <CardHeader>
         <CardTitle>Add Keywords</CardTitle>
         <CardDescription>
-          Add a single keyword, paste a list, or upload a CSV.
+          Enter a keyword and choose a location.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -147,6 +142,7 @@ export function KeywordForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Input 1: Keyword */}
           {mode === "single" && (
             <div className="space-y-2">
               <Label htmlFor="keyword">Keyword</Label>
@@ -184,25 +180,15 @@ export function KeywordForm() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <NativeSelect
-                id="country"
-                options={COUNTRY_OPTIONS}
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
-              <NativeSelect
-                id="language"
-                options={LANGUAGE_OPTIONS}
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              />
-            </div>
+          {/* Input 2: Location */}
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <NativeSelect
+              id="location"
+              options={LOCATION_OPTIONS}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
           </div>
 
           {message && (
@@ -217,7 +203,7 @@ export function KeywordForm() {
             </p>
           )}
 
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Saving…" : "Add Keywords"}
           </Button>
         </form>

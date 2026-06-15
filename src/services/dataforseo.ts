@@ -10,21 +10,9 @@ const DATAFORSEO_ENDPOINT =
 
 const TOP_N = 20;
 
-// Map our ISO country codes to DataForSEO `location_code` values.
-// https://docs.dataforseo.com/v3/serp/google/locations/
-const LOCATION_CODES: Record<string, number> = {
-  in: 2356, // India
-  us: 2840, // United States
-  gb: 2826, // United Kingdom
-  ca: 2124, // Canada
-  au: 2036, // Australia
-};
-
-// Map ISO language codes to DataForSEO `language_code` values.
-const LANGUAGE_CODES: Record<string, string> = {
-  en: "en",
-  hi: "hi",
-};
+// Results are fetched in English by default. The product treats "location"
+// as the single market input (DataForSEO `location_name`).
+const DEFAULT_LANGUAGE_CODE = "en";
 
 interface DfsResultItem {
   type?: string;
@@ -64,24 +52,15 @@ function authHeader(): string {
  */
 export async function fetchOrganicResults(
   keyword: string,
-  country = "in",
-  language = "en"
+  location = "India"
 ): Promise<OrganicResult[]> {
-  logger.info("DataForSEO: fetching organic SERP", {
-    keyword,
-    country,
-    language,
-  });
-
-  const locationCode = LOCATION_CODES[country.toLowerCase()] ?? LOCATION_CODES.in;
-  const languageCode =
-    LANGUAGE_CODES[language.toLowerCase()] ?? LANGUAGE_CODES.en;
+  logger.info("DataForSEO: fetching organic SERP", { keyword, location });
 
   const payload = [
     {
       keyword,
-      location_code: locationCode,
-      language_code: languageCode,
+      location_name: location,
+      language_code: DEFAULT_LANGUAGE_CODE,
       depth: TOP_N,
       // We only need the organic block.
       group_organic_results: true,

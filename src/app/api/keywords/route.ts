@@ -25,8 +25,7 @@ export async function GET() {
     const data = keywords.map((k) => ({
       id: k.id,
       keyword: k.keyword,
-      country: k.country,
-      language: k.language,
+      location: k.location,
       createdAt: k.createdAt,
       citationCount: k._count.citations,
       organicCount: k._count.organicRankings,
@@ -51,8 +50,7 @@ export async function POST(req: NextRequest) {
     const keyword = await prisma.keyword.create({
       data: {
         keyword: input.keyword,
-        country: input.country.toLowerCase(),
-        language: input.language.toLowerCase(),
+        location: input.location,
       },
     });
 

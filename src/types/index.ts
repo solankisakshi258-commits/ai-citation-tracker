@@ -59,7 +59,7 @@ export interface DashboardStats {
   totalCitations: number;
   totalCitationDomains: number;
   recentKeywords: Array<
-    Pick<Keyword, "id" | "keyword" | "country" | "language" | "createdAt">
+    Pick<Keyword, "id" | "keyword" | "location" | "createdAt">
   >;
   recentCollections: Array<{
     id: string;

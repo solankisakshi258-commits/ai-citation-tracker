@@ -1,20 +1,17 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// Lightweight native selects for country/language to keep the dependency
-// surface small. The values map to the codes the service layer understands.
-
-export const COUNTRY_OPTIONS = [
-  { value: "in", label: "India" },
-  { value: "us", label: "United States" },
-  { value: "gb", label: "United Kingdom" },
-  { value: "ca", label: "Canada" },
-  { value: "au", label: "Australia" },
-];
-
-export const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "hi", label: "Hindi" },
+// Location values are DataForSEO/SerpApi `location_name` strings. Country-level
+// names are accepted by both APIs, so the dropdown stays reliable. Add more
+// (incl. city-level like "Mumbai,Maharashtra,India") as needed.
+export const LOCATION_OPTIONS = [
+  { value: "India", label: "India" },
+  { value: "United States", label: "United States" },
+  { value: "United Kingdom", label: "United Kingdom" },
+  { value: "Canada", label: "Canada" },
+  { value: "Australia", label: "Australia" },
+  { value: "United Arab Emirates", label: "United Arab Emirates" },
+  { value: "Singapore", label: "Singapore" },
 ];
 
 type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {

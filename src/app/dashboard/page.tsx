@@ -68,7 +68,7 @@ export default async function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Keyword</TableHead>
-                    <TableHead className="w-24">Market</TableHead>
+                    <TableHead className="w-40">Location</TableHead>
                     <TableHead className="w-40">Added</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -83,8 +83,8 @@ export default async function DashboardPage() {
                           {k.keyword}
                         </Link>
                       </TableCell>
-                      <TableCell className="uppercase text-muted-foreground">
-                        {k.country}/{k.language}
+                      <TableCell className="text-muted-foreground">
+                        {k.location}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(k.createdAt)}

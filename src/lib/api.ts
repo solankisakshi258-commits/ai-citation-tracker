@@ -28,7 +28,7 @@ export function handleError(error: unknown, context: string) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     // Unique constraint violation.
     if (error.code === "P2002") {
-      return fail("This keyword already exists for that country/language.", 409);
+      return fail("This keyword already exists for that location.", 409);
     }
     // Record not found.
     if (error.code === "P2025") {
