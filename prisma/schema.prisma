@@ -1,0 +1,101 @@
+// AI Citation Tracker — Module 1 (data collection & storage)
+// Tracks Google AI Overview citations per keyword and compares them
+// against organic SERP rankings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Keyword {
+  id        String   @id @default(cuid())
+  keyword   String
+  country   String   @default("in") // ISO country code, e.g. "in", "us"
+  language  String   @default("en") // ISO language code, e.g. "en", "hi"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  aiOverviews      AiOverview[]
+  citations        Citation[]
+  organicRankings  OrganicRanking[]
+  jobs             Job[]
+
+  // A keyword is unique within a country/language market.
+  @@unique([keyword, country, language])
+  @@index([createdAt])
+  @@map("keywords")
+}
+
+model AiOverview {
+  id                String   @id @default(cuid())
+  keywordId         String   @map("keyword_id")
+  aiOverviewPresent Boolean  @default(false) @map("ai_overview_present")
+  overviewText      String?  @map("overview_text") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@index([keywordId])
+  @@index([createdAt])
+  @@map("ai_overviews")
+}
+
+model Citation {
+  id             String   @id @default(cuid())
+  keywordId      String   @map("keyword_id")
+  citationUrl    String   @map("citation_url") @db.Text
+  citationDomain String   @map("citation_domain")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@index([keywordId])
+  @@index([citationDomain])
+  @@index([createdAt])
+  @@map("citations")
+}
+
+model OrganicRanking {
+  id        String   @id @default(cuid())
+  keywordId String   @map("keyword_id")
+  position  Int
+  url       String   @db.Text
+  domain    String
+  title     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@index([keywordId])
+  @@index([domain])
+  @@index([createdAt])
+  @@map("organic_rankings")
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  keywordId   String    @map("keyword_id")
+  status      JobStatus @default(PENDING)
+  error       String?   @db.Text
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@index([keywordId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jobs")
+}
