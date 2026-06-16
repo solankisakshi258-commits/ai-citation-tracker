@@ -37,8 +37,18 @@ export default async function KeywordDetailPage({
     detail;
   const present = aiOverview?.aiOverviewPresent ?? false;
 
+  // Distinct cited domains (a domain may be cited via multiple URLs).
+  const citedDomains = Array.from(
+    new Set(citations.map((c) => c.citationDomain))
+  ).sort();
+
+  // Organic "Top 10" for the dedicated section (we store more for the
+  // comparison table; this view focuses on the traditional top 10).
+  const organicTop10 = organicRankings.slice(0, 10);
+
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -81,11 +91,11 @@ export default async function KeywordDetailPage({
         </Card>
       )}
 
-      {/* AI Overview */}
+      {/* ───────── 1. AI OVERVIEW TEXT (full response) ───────── */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>AI Overview</CardTitle>
+            <CardTitle>1. AI Overview Text</CardTitle>
             {present ? (
               <Badge variant="success">Present</Badge>
             ) : (
@@ -93,9 +103,8 @@ export default async function KeywordDetailPage({
             )}
           </div>
           <CardDescription>
-            {aiOverview
-              ? `Collected ${formatDate(aiOverview.createdAt)}`
-              : "Not collected yet."}
+            Full AI Overview response.{" "}
+            {aiOverview ? `Collected ${formatDate(aiOverview.createdAt)}.` : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,7 +122,133 @@ export default async function KeywordDetailPage({
         </CardContent>
       </Card>
 
-      {/* Comparison table — the core deliverable */}
+      {/* ───────── 2. CITATIONS — all cited domains ───────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>2. Citations — Cited Domains ({citedDomains.length})</CardTitle>
+          <CardDescription>
+            Every distinct domain cited inside the AI Overview.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {citedDomains.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No cited domains.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {citedDomains.map((d) => (
+                <Badge key={d} variant="secondary" className="text-sm">
+                  {d}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ───────── 3. URLs — all cited URLs ───────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>3. Citation URLs ({citations.length})</CardTitle>
+          <CardDescription>
+            Every URL cited inside the AI Overview, with its domain.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {citations.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No citation URLs.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-48">Domain</TableHead>
+                  <TableHead>URL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {citations.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">
+                      {c.citationDomain}
+                    </TableCell>
+                    <TableCell>
+                      <a
+                        href={c.citationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline break-all"
+                      >
+                        {c.citationUrl}
+                      </a>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ───────── 4. ORGANIC TOP 10 — traditional rankings ───────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>4. Organic Top 10</CardTitle>
+          <CardDescription>
+            Traditional organic ranking results
+            {organicRankings.length > 10
+              ? ` (showing top 10 of ${organicRankings.length} stored)`
+              : ""}
+            .
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {organicTop10.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No organic rankings.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-48">Domain</TableHead>
+                  <TableHead>Result</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {organicTop10.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="tabular-nums font-medium">
+                      {r.position}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.domain}
+                    </TableCell>
+                    <TableCell>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {r.title}
+                      </a>
+                      <div className="text-xs text-muted-foreground break-all">
+                        {r.url}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Comparison table — bridges the four blocks for the next module */}
       <Card>
         <CardHeader>
           <CardTitle>Comparison: Organic Rank vs. AI Citation</CardTitle>
@@ -125,97 +260,6 @@ export default async function KeywordDetailPage({
           <ComparisonTable rows={comparison} />
         </CardContent>
       </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Citations */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Citation Sources ({citations.length})</CardTitle>
-            <CardDescription>URLs cited inside the AI Overview.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {citations.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No citations.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-40">Domain</TableHead>
-                    <TableHead>URL</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {citations.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">
-                        {c.citationDomain}
-                      </TableCell>
-                      <TableCell>
-                        <a
-                          href={c.citationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline break-all"
-                        >
-                          {c.citationUrl}
-                        </a>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Organic rankings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Organic Rankings ({organicRankings.length})</CardTitle>
-            <CardDescription>Top organic SERP results.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {organicRankings.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No organic rankings.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Result</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {organicRankings.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="tabular-nums text-muted-foreground">
-                        {r.position}
-                      </TableCell>
-                      <TableCell>
-                        <a
-                          href={r.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {r.title}
-                        </a>
-                        <div className="text-xs text-muted-foreground">
-                          {r.domain}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
