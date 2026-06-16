@@ -70,10 +70,13 @@ export default async function KeywordDetailPage({
         </div>
       </div>
 
-      {latestJob?.status === "FAILED" && latestJob.error && (
+      {latestJob?.error && (
         <Card className="border-destructive/50">
           <CardContent className="pt-6 text-sm text-destructive">
-            Last collection failed: {latestJob.error}
+            {latestJob.status === "FAILED"
+              ? "Last collection failed: "
+              : "Last collection completed with a warning: "}
+            {latestJob.error}
           </CardContent>
         </Card>
       )}

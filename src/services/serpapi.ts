@@ -86,10 +86,10 @@ function mapCitations(
     const url = ref.link?.trim();
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    citations.push({
-      url,
-      domain: extractDomain(ref.source || url),
-    });
+    // Derive the domain from the actual link; `source` is a publisher
+    // display name (e.g. "Team-BHP"), not a hostname.
+    const domain = extractDomain(url) || extractDomain(ref.source || "");
+    citations.push({ url, domain });
   }
   return citations;
 }

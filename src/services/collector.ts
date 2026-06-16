@@ -43,67 +43,114 @@ export async function collectKeyword(
   });
 
   try {
-    // Fetch both sources in parallel — they are independent.
-    const [aiOverview, organic] = await Promise.all([
+    // Fetch both sources in parallel and independently. One source failing
+    // (e.g. an unverified DataForSEO account) must not discard the other's
+    // data, so we persist whatever succeeded.
+    const [aiSettled, organicSettled] = await Promise.allSettled([
       fetchAiOverview(keyword.keyword, keyword.location),
       fetchOrganicResults(keyword.keyword, keyword.location),
     ]);
 
-    // Persist atomically: clear the previous snapshot, write the new one.
-    await prisma.$transaction([
-      prisma.aiOverview.deleteMany({ where: { keywordId } }),
-      prisma.citation.deleteMany({ where: { keywordId } }),
-      prisma.organicRanking.deleteMany({ where: { keywordId } }),
+    const aiOverview =
+      aiSettled.status === "fulfilled" ? aiSettled.value : null;
+    const organic =
+      organicSettled.status === "fulfilled" ? organicSettled.value : null;
 
-      prisma.aiOverview.create({
+    const errors: string[] = [];
+    if (aiSettled.status === "rejected") {
+      errors.push(`AI Overview (SerpApi): ${errText(aiSettled.reason)}`);
+    }
+    if (organicSettled.status === "rejected") {
+      errors.push(`Organic (DataForSEO): ${errText(organicSettled.reason)}`);
+    }
+
+    // Both sources failed — nothing to save; record the failure.
+    if (!aiOverview && !organic) {
+      const message = errors.join(" | ");
+      logger.error("Collector: failed", { keywordId, jobId: job.id, message });
+      await prisma.job.update({
+        where: { id: job.id },
         data: {
-          keywordId,
-          aiOverviewPresent: aiOverview.present,
-          overviewText: aiOverview.overviewText,
+          status: "FAILED",
+          completedAt: new Date(),
+          error: message.slice(0, 1000),
         },
-      }),
+      });
+      throw new Error(message);
+    }
 
-      prisma.citation.createMany({
-        data: aiOverview.citations.map((c) => ({
-          keywordId,
-          citationUrl: c.url,
-          citationDomain: c.domain,
-        })),
-      }),
+    // Persist atomically: clear the prior snapshot for whichever source(s)
+    // we have fresh data for, then write the new rows.
+    const ops = [];
+    if (aiOverview) {
+      ops.push(
+        prisma.aiOverview.deleteMany({ where: { keywordId } }),
+        prisma.citation.deleteMany({ where: { keywordId } }),
+        prisma.aiOverview.create({
+          data: {
+            keywordId,
+            aiOverviewPresent: aiOverview.present,
+            overviewText: aiOverview.overviewText,
+          },
+        }),
+        prisma.citation.createMany({
+          data: aiOverview.citations.map((c) => ({
+            keywordId,
+            citationUrl: c.url,
+            citationDomain: c.domain,
+          })),
+        })
+      );
+    }
+    if (organic) {
+      ops.push(
+        prisma.organicRanking.deleteMany({ where: { keywordId } }),
+        prisma.organicRanking.createMany({
+          data: organic.map((o) => ({
+            keywordId,
+            position: o.position,
+            url: o.url,
+            domain: o.domain,
+            title: o.title,
+          })),
+        })
+      );
+    }
+    await prisma.$transaction(ops);
 
-      prisma.organicRanking.createMany({
-        data: organic.map((o) => ({
-          keywordId,
-          position: o.position,
-          url: o.url,
-          domain: o.domain,
-          title: o.title,
-        })),
-      }),
-    ]);
-
+    // Completed (possibly partially). Record any source error for visibility.
+    const partialError = errors.length ? errors.join(" | ").slice(0, 1000) : null;
     await prisma.job.update({
       where: { id: job.id },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+        error: partialError,
+      },
     });
 
     logger.info("Collector: completed", {
       keywordId,
       jobId: job.id,
-      aiOverviewPresent: aiOverview.present,
-      citationCount: aiOverview.citations.length,
-      organicCount: organic.length,
+      partial: errors.length > 0,
+      aiOverviewPresent: aiOverview?.present ?? false,
+      citationCount: aiOverview?.citations.length ?? 0,
+      organicCount: organic?.length ?? 0,
     });
 
     return {
       keywordId,
-      aiOverviewPresent: aiOverview.present,
-      citationCount: aiOverview.citations.length,
-      organicCount: organic.length,
+      aiOverviewPresent: aiOverview?.present ?? false,
+      citationCount: aiOverview?.citations.length ?? 0,
+      organicCount: organic?.length ?? 0,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error("Collector: failed", { keywordId, jobId: job.id, message });
+    logger.error("Collector: unexpected failure", {
+      keywordId,
+      jobId: job.id,
+      message,
+    });
 
     await prisma.job.update({
       where: { id: job.id },
@@ -116,6 +163,11 @@ export async function collectKeyword(
 
     throw error;
   }
+}
+
+/** Extracts a readable message from an unknown rejection reason. */
+function errText(reason: unknown): string {
+  return reason instanceof Error ? reason.message : String(reason);
 }
 
 /**
