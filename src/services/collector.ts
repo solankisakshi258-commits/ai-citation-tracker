@@ -1,13 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { fetchAiOverview } from "@/services/serpapi";
+import { env } from "@/lib/env";
+import { fetchSerp } from "@/services/serpapi";
 import { fetchOrganicResults } from "@/services/dataforseo";
-import type { CollectionResult } from "@/types";
+import type {
+  CollectionResult,
+  AiOverviewResult,
+  OrganicResult,
+} from "@/types";
 
 /**
  * Runs a full data-collection cycle for a single keyword:
- *   1. SerpApi  -> Google AI Overview + citations
- *   2. DataForSEO -> top-20 organic rankings
+ *   1. SerpApi  -> Google AI Overview + citations (+ organic by default)
+ *   2. Organic rankings -> SerpApi (default) or DataForSEO (ORGANIC_SOURCE)
  *   3. Persist everything in PostgreSQL (replacing the previous snapshot)
  *
  * A `Job` row tracks the lifecycle (PENDING -> RUNNING -> COMPLETED/FAILED)
@@ -43,25 +48,39 @@ export async function collectKeyword(
   });
 
   try {
-    // Fetch both sources in parallel and independently. One source failing
-    // (e.g. an unverified DataForSEO account) must not discard the other's
-    // data, so we persist whatever succeeded.
-    const [aiSettled, organicSettled] = await Promise.allSettled([
-      fetchAiOverview(keyword.keyword, keyword.location),
-      fetchOrganicResults(keyword.keyword, keyword.location),
+    const organicSource = env.ORGANIC_SOURCE;
+
+    // SerpApi returns the AI Overview and (by default) the organic rankings in
+    // a single call. When ORGANIC_SOURCE=dataforseo, organic comes from
+    // DataForSEO instead. Sources are fetched independently and we persist
+    // whatever succeeds, so one failing source never discards the other.
+    const [serpSettled, dfsSettled] = await Promise.allSettled([
+      fetchSerp(keyword.keyword, keyword.location),
+      organicSource === "dataforseo"
+        ? fetchOrganicResults(keyword.keyword, keyword.location)
+        : Promise.resolve(null),
     ]);
 
-    const aiOverview =
-      aiSettled.status === "fulfilled" ? aiSettled.value : null;
-    const organic =
-      organicSettled.status === "fulfilled" ? organicSettled.value : null;
-
     const errors: string[] = [];
-    if (aiSettled.status === "rejected") {
-      errors.push(`AI Overview (SerpApi): ${errText(aiSettled.reason)}`);
+
+    let aiOverview: AiOverviewResult | null = null;
+    let serpOrganic: OrganicResult[] | null = null;
+    if (serpSettled.status === "fulfilled") {
+      aiOverview = serpSettled.value.aiOverview;
+      serpOrganic = serpSettled.value.organic;
+    } else {
+      errors.push(`SerpApi: ${errText(serpSettled.reason)}`);
     }
-    if (organicSettled.status === "rejected") {
-      errors.push(`Organic (DataForSEO): ${errText(organicSettled.reason)}`);
+
+    let organic: OrganicResult[] | null = null;
+    if (organicSource === "dataforseo") {
+      if (dfsSettled.status === "fulfilled") {
+        organic = dfsSettled.value as OrganicResult[];
+      } else {
+        errors.push(`Organic (DataForSEO): ${errText(dfsSettled.reason)}`);
+      }
+    } else {
+      organic = serpOrganic;
     }
 
     // Both sources failed — nothing to save; record the failure.

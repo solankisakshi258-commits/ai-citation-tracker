@@ -1,9 +1,16 @@
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { extractDomain } from "@/lib/utils";
-import type { AiOverviewResult, AiCitationResult } from "@/types";
+import type {
+  AiOverviewResult,
+  AiCitationResult,
+  OrganicResult,
+} from "@/types";
 
 const SERPAPI_BASE = "https://serpapi.com/search.json";
+
+// Number of organic results to request/keep.
+const TOP_N = 20;
 
 /**
  * SerpApi can return an AI Overview inline with the main search response, OR
@@ -32,8 +39,17 @@ interface SerpApiAiOverview {
   error?: string;
 }
 
+interface SerpApiOrganicResult {
+  position?: number;
+  title?: string;
+  link?: string;
+  source?: string;
+  displayed_link?: string;
+}
+
 interface SerpApiResponse {
   ai_overview?: SerpApiAiOverview;
+  organic_results?: SerpApiOrganicResult[];
   error?: string;
 }
 
@@ -47,6 +63,7 @@ function buildSearchUrl(keyword: string, location: string): string {
     q: keyword,
     location,
     hl: DEFAULT_HL,
+    num: String(TOP_N),
     api_key: env.SERPAPI_API_KEY,
   });
   return `${SERPAPI_BASE}?${params.toString()}`;
@@ -94,6 +111,26 @@ function mapCitations(
   return citations;
 }
 
+/** Normalizes SerpApi organic_results into our OrganicResult shape. */
+function mapOrganic(
+  results: SerpApiOrganicResult[] | undefined
+): OrganicResult[] {
+  if (!results?.length) return [];
+  const organic: OrganicResult[] = [];
+  for (const item of results) {
+    if (!item.link || !item.position) continue;
+    organic.push({
+      position: item.position,
+      url: item.link,
+      domain: extractDomain(item.link) || extractDomain(item.source || ""),
+      title: item.title?.trim() || "(no title)",
+    });
+    if (organic.length >= TOP_N) break;
+  }
+  organic.sort((a, b) => a.position - b.position);
+  return organic;
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, {
     method: "GET",
@@ -111,24 +148,11 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/**
- * Fetches the Google AI Overview for a keyword and returns normalized data:
- * whether an overview is present, its text, and its citation URLs/domains.
- */
-export async function fetchAiOverview(
-  keyword: string,
-  location = "India"
+/** Parses the ai_overview block (redeeming a page_token when required). */
+async function parseAiOverview(
+  initial: SerpApiResponse,
+  keyword: string
 ): Promise<AiOverviewResult> {
-  logger.info("SerpApi: fetching AI overview", { keyword, location });
-
-  const initial = await fetchJson<SerpApiResponse>(
-    buildSearchUrl(keyword, location)
-  );
-
-  if (initial.error) {
-    throw new Error(`SerpApi error: ${initial.error}`);
-  }
-
   let overview = initial.ai_overview;
 
   // No AI overview block at all -> not present.
@@ -154,15 +178,52 @@ export async function fetchAiOverview(
   const overviewText = flattenText(overview.text_blocks);
   const citations = mapCitations(overview.references);
 
-  logger.info("SerpApi: AI overview fetched", {
-    keyword,
-    citationCount: citations.length,
-    hasText: overviewText.length > 0,
-  });
-
   return {
     present: true,
     overviewText: overviewText || null,
     citations,
   };
+}
+
+/**
+ * Fetches a Google SERP via SerpApi ONCE and returns both the normalized AI
+ * Overview (present/text/citations) and the organic rankings. Using a single
+ * call keeps SerpApi credit usage low.
+ */
+export async function fetchSerp(
+  keyword: string,
+  location = "India"
+): Promise<{ aiOverview: AiOverviewResult; organic: OrganicResult[] }> {
+  logger.info("SerpApi: fetching SERP", { keyword, location });
+
+  const initial = await fetchJson<SerpApiResponse>(
+    buildSearchUrl(keyword, location)
+  );
+
+  if (initial.error) {
+    throw new Error(`SerpApi error: ${initial.error}`);
+  }
+
+  const aiOverview = await parseAiOverview(initial, keyword);
+  const organic = mapOrganic(initial.organic_results);
+
+  logger.info("SerpApi: SERP fetched", {
+    keyword,
+    aiOverviewPresent: aiOverview.present,
+    citationCount: aiOverview.citations.length,
+    organicCount: organic.length,
+  });
+
+  return { aiOverview, organic };
+}
+
+/**
+ * Convenience wrapper that returns only the AI Overview portion of a SERP.
+ */
+export async function fetchAiOverview(
+  keyword: string,
+  location = "India"
+): Promise<AiOverviewResult> {
+  const { aiOverview } = await fetchSerp(keyword, location);
+  return aiOverview;
 }

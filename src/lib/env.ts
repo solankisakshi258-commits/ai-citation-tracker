@@ -32,4 +32,14 @@ export const env = {
   get CRON_SECRET() {
     return process.env.CRON_SECRET ?? "";
   },
+  /**
+   * Where organic rankings come from: "serpapi" (default) reuses the SerpApi
+   * SERP call; "dataforseo" uses the DataForSEO SERP API. DataForSEO requires
+   * a verified, funded account.
+   */
+  get ORGANIC_SOURCE(): "serpapi" | "dataforseo" {
+    return process.env.ORGANIC_SOURCE === "dataforseo"
+      ? "dataforseo"
+      : "serpapi";
+  },
 };
