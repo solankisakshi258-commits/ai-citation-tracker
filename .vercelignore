@@ -1,0 +1,6 @@
+.env
+.env.local
+tunnel.log
+node_modules
+.next
+.git
